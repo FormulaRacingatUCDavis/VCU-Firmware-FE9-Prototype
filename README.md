@@ -3,5 +3,5 @@
 This is the *prototype* code for the VCU.
 
 **Contents**
-- VCU finite state machine
-- Pedal node code
+- (in progress) VCU finite state machine (previously on Dashboard)
+- (planned) Pedal node code
