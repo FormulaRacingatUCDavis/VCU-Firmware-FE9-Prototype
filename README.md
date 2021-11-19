@@ -1,2 +1,7 @@
-# VCU-Firmware-FE8
-Vehicle Control Unit/Pedal Node Code
+# Vehicle Control Unit
+
+This is the *prototype* code for the VCU.
+
+**Contents**
+- VCU finite state machine
+- Pedal node code
