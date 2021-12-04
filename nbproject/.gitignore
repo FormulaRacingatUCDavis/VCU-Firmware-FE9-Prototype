@@ -1,7 +1,5 @@
 # Source: https://microchipdeveloper.com/faq:72
 
-build/
-dist/
-
-# Hex binaries
-*.hex
+Makefile-*
+Package-*
+private/
