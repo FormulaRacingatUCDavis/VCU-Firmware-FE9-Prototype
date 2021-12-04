@@ -46,32 +46,32 @@
 /*
                          Main application
  */
-void main(void)
-{
-    // Initialize the device
-    SYSTEM_Initialize();
-
-    // If using interrupts in PIC18 High/Low Priority Mode you need to enable the Global High and Low Interrupts
-    // If using interrupts in PIC Mid-Range Compatibility Mode you need to enable the Global Interrupts
-    // Use the following macros to:
-
-    // Enable the Global Interrupts
-    //INTERRUPT_GlobalInterruptEnable();
-
-    // Disable the Global Interrupts
-    //INTERRUPT_GlobalInterruptDisable();
-
-    while (1)
-    {
-        // Add your application code
-        if(IO_RB1_GetValue())
-        {
-        UART1_Write('h');
-        UART1_Write('\n');
-        __delay_ms(500);
-        }
-    }
-}
+//void main(void)
+//{
+//    // Initialize the device
+//    SYSTEM_Initialize();
+//
+//    // If using interrupts in PIC18 High/Low Priority Mode you need to enable the Global High and Low Interrupts
+//    // If using interrupts in PIC Mid-Range Compatibility Mode you need to enable the Global Interrupts
+//    // Use the following macros to:
+//
+//    // Enable the Global Interrupts
+//    //INTERRUPT_GlobalInterruptEnable();
+//
+//    // Disable the Global Interrupts
+//    //INTERRUPT_GlobalInterruptDisable();
+//
+//    while (1)
+//    {
+//        // Add your application code
+//        if(IO_RB1_GetValue())
+//        {
+//        UART1_Write('h');
+//        UART1_Write('\n');
+//        __delay_ms(500);
+//        }
+//    }
+//}
 /**
  End of File
 */
@@ -88,13 +88,54 @@ void main(void)
 #include <string.h>
 #include <conio.h>
 
-
-
 #define THROTTLE_LIMITING
 
 
 
 // added for testing on pic --------------------------
+
+volatile uint8_t ERROR_TOLERANCE = 0;
+uint8_t getErrorTolerance()
+{
+    return ERROR_TOLERANCE;
+}
+
+volatile uint8_t CURTIS_HEART_BEAT_CHECK = 0;
+uint8_t getCurtisHeartBeatCheck()
+{
+    return CURTIS_HEART_BEAT_CHECK;
+}
+
+volatile uint8_t ABS_MOTOR_RPM = 0;
+uint8_t getABSMotorRPM()
+{
+    return ABS_MOTOR_RPM;
+}
+    
+volatile uint8_t CAPACITOR_VOLT = 0;
+uint8_t getCapacitorVoltage()
+{
+    return CAPACITOR_VOLT;
+}  
+    
+volatile uint8_t ACK_RX = 0;
+uint8_t getAckRx()
+{
+    return ACK_RX;
+}
+
+volatile uint8_t THROTTLE_HIGH = 0;
+uint8_t getPedalHigh()
+{
+    return THROTTLE_HIGH;
+}
+
+volatile uint8_t THROTTLE_LOW = 0;
+uint8_t getPedalLow()
+{
+    return THROTTLE_LOW;
+}
+
 
 //from data.h
 typedef enum{
@@ -113,15 +154,16 @@ typedef enum{
     CELL_VOLT_OVER = 0x0800,
     CELL_VOLT_UNDER = 0x1000,
     CHARGE_HAULT = 0x2000,
-    FULL = 0x4000,
+    FULL_ = 0x4000,
     PRECHARGE_CLOSED = 0x8000
 }BMS_STATUS;
 
 void print(char * message) {
     uint8_t i;
     for (i = 0; i < strlen(message); i++) {
-        UART1_Write(char[i]);
+        UART1_Write(message[i]);
     }
+    UART1_Write("    ");
 }
 
 uint8_t Drive_Read(void)
@@ -325,12 +367,12 @@ volatile BMS_STATUS bms_status = NO_ERROR;
 *
 *******************************************************************************/
 
-int main()
+void main(void)
 {   
     // added for testing on pic -----------------------------------
     SYSTEM_Initialize();
     
-    
+    print("STart");
     
     
 //    EEPROM_1_Start();
@@ -410,11 +452,11 @@ int main()
 
 //                Buzzer_Write(0);
 //                CyDelay(50);
-                print("Buzzer off");
+                print("Buzzer: off");
                 __delay_ms(50);
                 
 //                Buzzer_Write(1);
-                print("Buzzer on")
+                print("Buzzer: on");
                 
                 state = LV;
                 
@@ -447,7 +489,7 @@ int main()
                 //hex2Display(charge);
 
 //                Buzzer_Write(0);
-                print("Buzzer off");
+                print("Buzzer: off");
                 
                 //
                 // RGB code goes here
@@ -512,7 +554,7 @@ int main()
                         break;
                     }
                 
-                    CyDelay(1000);
+//                    CyDelay(1000);
                 }    
                 
             break;
@@ -552,23 +594,23 @@ int main()
                 //CyDelay(5000); ///for debug
                 
 //                Buzzer_Write(0);
-                print("Buzzer off")
+                print("Buzzer: off");
                 
                 //charge = SOC_LUT[(voltage - 93400) / 100] / 100;
                 //hex1Display(charge);
                 
                 if (Drive_Read())
                 {
-                    CyDelay(1000); // wait for the brake msg to be sent
+//                    CyDelay(1000); // wait for the brake msg to be sent
                     if(getErrorTolerance() == 0) // 100 for error tolerance /// needs to be getErrorTolerance
                     {
 ////                      Buzzer_Write(1);
 //                        CyDelay(1000);
 //                        Buzzer_Write(0);
                         
-                        print("Buzzer on");
+                        print("Buzzer: on");
                         __delay_ms(500);
-                        print("Buzzer off");
+                        print("Buzzer: off");
                         
                         state = Drive;
                         break;
@@ -691,25 +733,26 @@ int main()
                 __delay_ms(1000);
                 
 //                Buzzer_Write(0);
-                print("Buzzer off");
+                print("Buzzer: off");
                 
-                if(error_state == fromBMS) {}
-                GLCD_Clear_Frame();
-                GLCD_DrawString(0,0,"DASH",2);
-                GLCD_DrawString(0,32,"FAULT:",2);
-                GLCD_DrawInt(80,32,error_state,2);
-                GLCD_DrawString(110, 0, "T:", 2);
-                GLCD_DrawString(110, 32, "FALUT:", 2);
-                char* bms_f;
+//                if(error_state == fromBMS) {}
+//                GLCD_Clear_Frame();
+//                GLCD_DrawString(0,0,"DASH",2);
+//                GLCD_DrawString(0,32,"FAULT:",2);
+//                GLCD_DrawInt(80,32,error_state,2);
+//                GLCD_DrawString(110, 0, "T:", 2);
+//                GLCD_DrawString(110, 32, "FALUT:", 2);
+//                char* bms_f;
                 //sprintf(bms_f, "%x", bms_error);
                 if(error_state == fromBMS) {
-                    GLCD_DrawChar(110, 0, PACK_TEMP, 2);
-                GLCD_DrawInt(180, 32, bms_error, 2);
-                GLCD_DrawInt(180, 0, ERROR_NODE, 2);
-                GLCD_DrawChar(184, 0, ',', 2);
-                GLCD_DrawInt(188, 0, ERROR_IDX, 2);
+//                    GLCD_DrawChar(110, 0, PACK_TEMP, 2);
+//                    GLCD_DrawInt(180, 32, bms_error, 2);
+//                    GLCD_DrawInt(180, 0, ERROR_NODE, 2);
+//                    GLCD_DrawChar(184, 0, ',', 2);
+//                    GLCD_DrawInt(188, 0, ERROR_IDX, 2);
+                    print("error state: fromBMS");
                 }
-                GLCD_Write_Frame();
+//                GLCD_Write_Frame();
                 
                 if(error_state == fromLV)
                 {
@@ -737,9 +780,9 @@ int main()
                 }
                 else if (error_state == fromDrive)
                 {   
-                    can_send_cmd(1, Throttle_High, Throttle_Low); // setInterlock
+//                    can_send_cmd(1, Throttle_High, Throttle_Low); // setInterlock
                     
-                    CyDelay(200);
+//                    CyDelay(200);
                     
                     // Curtis Come back online again without error
                     if((getCurtisHeartBeatCheck())) // EDIT: Removed !(Curtis_Fault_Check(data_queue,data_head,data_tail) & 
@@ -799,7 +842,7 @@ int main()
 //    /* Set the isrFlag */
 //    //isrFlag = 1u;    
 //
-//    /* Acknowledges receipt of new message */
+//    /* Acknowledges receipt of new message 
 //    CAN_RX_ACK_MESSAGE(CAN_RX_MAILBOX_0);
 //
 //    ///* Clear Receive Message flag */
