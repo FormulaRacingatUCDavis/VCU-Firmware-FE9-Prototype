@@ -163,7 +163,7 @@ void print(char * message) {
     for (i = 0; i < strlen(message); i++) {
         UART1_Write(message[i]);
     }
-    UART1_Write("\n");
+    UART1_Write('\n');
 }
 
 uint8_t Drive_Read(void)
