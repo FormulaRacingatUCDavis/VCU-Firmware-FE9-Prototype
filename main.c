@@ -439,6 +439,7 @@ void main(void)
                      print("START");
                 } else {
 //                    displayData();
+		      print("Displaying data");
                 }
                 
                 //Initialize CAN
