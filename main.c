@@ -3,16 +3,7 @@
 #include <string.h>
 #include <time.h>
 
-#define DEBUG 1
-
-void debugPrint(char *message) {
-    #if DEBUG
-    for (uint8_t i = 0; i < strlen(message); i++) {
-        UART1_Write(message[i]);
-    }
-    UART1_Write('\n');
-    #endif
-}
+// States
 
 typedef enum {
     LV,
@@ -29,22 +20,36 @@ typedef enum {
     BRAKE_NOT_PRESSED
 } error_t;
 
+// Breadboard components
+
+// Switches
+// On the breadboard: 0 when flipped left, 1 when flipped right
+
 uint8_t is_hv_requested() {
-    // TODO: change to read the signal from board
-    return 1;
+    return IO_RB2_GetValue();
 }
 
 uint8_t is_drive_requested() {
-    // TODO: change to read the signal from board
-    return 1;
+    return IO_RB3_GetValue();
 }
 
-volatile uint8_t capacitor_volts = 0;
+// Pedals
+// On the breadboard, the range of values is 0 to 4095
 
-#define HV_CAPACITOR_VOLTS 16
+#define PEDAL_MAX 4095
 
+uint16_t get_brake_pedal_value() {
+    return ADCC_GetSingleConversion(channel_ANB0);
+}
+
+uint16_t get_gas_pedal_value() {
+    return ADCC_GetSingleConversion(channel_ANB1);
+}
+
+// Precharging state variables
 #define MAX_CONSERVATION_SECS 4
 
+// High voltage state variables
 #define DRIVE_REQ_DELAY_MS 1000
 
 // Initial FSM state
@@ -52,110 +57,143 @@ state_t state = LV;
 error_t error = NONE;
 
 // Used for precharging conservative timer
-double conservative_timer_secs;
-clock_t last_iteration_time;
+unsigned int conservative_timer_secs = 0;
 bool is_precharging_initialized = false;
 
-// HV
-double errorTolerance;
+const char* state_names[] = {"LV", "PRECHARGING", "HV_ENABLED", "DRIVE", "FAULT"};
+const char* error_names[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", "BRAKE_NOT_PRESSED"};
+
+void change_state(const state_t new_state) {
+    // Handle edge cases
+    if (state == FAULT && new_state != FAULT) {
+        // Reset the error cause when exiting fault state
+        error = NONE;
+    }
+    
+    if (state == PRECHARGING && new_state != PRECHARGING) {
+        // Reset flag for next time we precharge the car
+        is_precharging_initialized = false;
+    }
+    
+    // Print state transition
+    printf("%s -> %s\n", state_names[state], state_names[new_state]);
+    
+    state = new_state;
+}
+
+void report_fault(error_t _error) {
+    change_state(FAULT);
+    
+    printf("Error: %s\n", error_names[_error]);
+    
+    // Cause of error
+    error = _error;
+}
 
 void main() {
     // Reset PIC18
     SYSTEM_Initialize();
 
+    // Set up ADCC for reading analog signals
+    ADCC_DischargeSampleCapacitor();
+
+#if 1
+    while (1)
+    {
+//        int potentiometer_val = ADCC_GetSingleConversion(channel_ANB0);
+//        printf("%d\n", potentiometer_val);
+        
+        int switch_val = IO_RB3_GetValue();
+        printf("Switch with macro: %d\n", switch_val);
+        
+//        switch_val = is_drive_requested();
+//        printf("Switch with function: %d\n", switch_val);
+    }
+#endif
+    
     while (1) {
         // Main FSM
         // Source: https://docs.google.com/document/d/1q0RL4FmDfVuAp6xp9yW7O-vIvnkwoAXWssC3-vBmNGM/edit?usp=sharing
         switch (state) {
             case LV:
                 if (is_drive_requested()) {
-                    // Drive switch cannot be enabled during LV
-                    state = FAULT;
-                    error = DRIVE_REQUEST_FROM_LV;
+                    // Drive switch should not be enabled during LV
+                    report_fault(DRIVE_REQUEST_FROM_LV);
                     break;
                 }
 
                 if (is_hv_requested()) {
                     // HV switch was flipped
-                    state = PRECHARGING;
+                    // Start charging the car to high voltage state
+                    change_state(PRECHARGING);
                 }
                 break;
             case PRECHARGING:
-                if (!is_precharging_initialized) {
-                    // Initialize conservative timer
-                    conservative_timer_secs = 0;                    
-                    is_precharging_initialized = true;
-                } else {
-                    // Update conservative timer
-                    double elapsed = (clock() - last_iteration_time) / CLOCKS_PER_SEC;
-                    conservative_timer_secs += elapsed;
-                }
-
-                // Use this to find elapsed time from now to next iteration
-                last_iteration_time = clock();
-                
                 if (conservative_timer_secs >= MAX_CONSERVATION_SECS) {
                     // Precharging timed out
-                    state = FAULT;
-                    error = CONSERVATIVE_TIMER_MAXED;
-                    // Reset flag
-                    is_precharging_initialized = false;
+                    // Took too long to charge up
+                    report_fault(CONSERVATIVE_TIMER_MAXED);
                     break;
                 }
-                                
-                if (capacitor_volts >= HV_CAPACITOR_VOLTS) {
-                    // Finished charging to HV
-                    state = HV_ENABLED;
-                    // Reset flag
-                    is_precharging_initialized = false;
-                }
-
-                break;
-            case HV_ENABLED:
-                if (is_drive_requested()) {
-                    // Wait for driver to press brake
-                    __delay_ms(DRIVE_REQ_DELAY_MS);
-                    if (errorTolerance == 0) {
-                        // Brake pressed
-                        state = DRIVE;                        
-                    } else {
-                        // Brake not pressed
-                        state = FAULT;
-                        error = BRAKE_NOT_PRESSED;
-                    }
+                     
+                // TODO: get signal from motor controller
+                // that capacitor volts exceeded threshold
+                if (1) {
+                    // Finished charging to HV in timely manner
+                    change_state(HV_ENABLED);
+                    break;
                 }
                 
+                // TODO: update the timer using clock cycles instead
+                __delay_ms(1000);
+                conservative_timer_secs += 1;
+                break;
+            case HV_ENABLED:
                 if (!is_hv_requested()) {
-                    // Driver disabled HV
-                    // or capacitor voltage went under threshold
-                    state = LV;
+                    // Driver flipped off HV switch
+                    // TODO: or capacitor voltage went under threshold
+                    change_state(LV);
+                    break;
+                }
+
+                if (is_drive_requested()) {
+                    // Driver just flipped drive switch
+                    // Give driver some time to press brake
+                    __delay_ms(DRIVE_REQ_DELAY_MS);
+                    
+                    // Now check
+                    if (get_brake_pedal_value() == PEDAL_MAX) {
+                        // Brake pressed
+                        change_state(DRIVE);                        
+                    } else {
+                        // Brake not pressed
+                        report_fault(BRAKE_NOT_PRESSED);
+                    }
                 }
                 break;
             case DRIVE:
+                // TODO
                 break;
             case FAULT:
                 switch (error) {
                     case DRIVE_REQUEST_FROM_LV:
                         if (!is_drive_requested()) {
-                            // Drive switch is flipped off again
-                            // Revert to LV like normal
-                            state = LV;
-                            error = NONE;
+                            // Drive switch was flipped off
+                            // Revert to LV
+                            change_state(LV);
                         }
                         break;
                     case CONSERVATIVE_TIMER_MAXED:
                         if (!is_hv_requested() && !is_drive_requested()) {
                             // Drive and HV switch must both be reset
                             // to revert to LV
-                            state = LV;
-                            error = NONE;
+                            change_state(LV);
                         }
                         break;
                     case BRAKE_NOT_PRESSED:
                         if (!is_drive_requested()) {
                             // Ask driver to reset drive switch and try again
-                            state = HV_ENABLED;
-                            error = NONE;
+                            change_state(HV_ENABLED);
                         }
                         break;
                 }

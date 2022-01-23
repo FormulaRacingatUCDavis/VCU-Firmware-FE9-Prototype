@@ -52,6 +52,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <conio.h>
+#include "adcc.h"
 #include "uart1.h"
 
 
