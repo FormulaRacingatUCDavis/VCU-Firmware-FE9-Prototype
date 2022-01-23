@@ -1,7 +1,9 @@
 # Vehicle Control Unit
 
-This is the *prototype* code for the VCU.
+This is the *prototype* code for the vehicle control unit. It hosts the finite state machine (FSM) to control the state of the vehicle.
 
-**Contents**
-- (in progress) VCU finite state machine (previously on Dashboard)
-- (planned) Pedal node code
+Completed
+- Breadboard + microcontroller design
+
+In-progress
+- Finite state machine
