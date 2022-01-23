@@ -113,6 +113,8 @@ void main() {
     }
 #endif
     
+    printf("Starting in %s state", state_names[state]);
+    
     while (1) {
         // Main FSM
         // Source: https://docs.google.com/document/d/1q0RL4FmDfVuAp6xp9yW7O-vIvnkwoAXWssC3-vBmNGM/edit?usp=sharing
