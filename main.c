@@ -30,13 +30,17 @@ uint8_t is_hv_requested() {
 }
 
 uint8_t is_drive_requested() {
-    return IO_RB3_GetValue();
+    return IO_RA0_GetValue();
 }
 
 // Pedals
 // On the breadboard, the range of values is 0 to 4095
 
 #define PEDAL_MAX 4095
+
+// There is some noise when reading from the brake pedal
+// So give some room for error when driver presses on brake
+#define BRAKE_ERROR_TOLERANCE 20
 
 uint16_t get_brake_pedal_value() {
     return ADCC_GetSingleConversion(channel_ANB0);
@@ -97,17 +101,15 @@ void main() {
     // Set up ADCC for reading analog signals
     ADCC_DischargeSampleCapacitor();
 
-#if 1
+    // Only for debugging. Use this to test the controls on the breadboard
+#if 0
     while (1)
     {
-//        int potentiometer_val = ADCC_GetSingleConversion(channel_ANB0);
-//        printf("%d\n", potentiometer_val);
-        
-        int switch_val = IO_RB3_GetValue();
-        printf("Switch with macro: %d\n", switch_val);
-        
-//        switch_val = is_drive_requested();
-//        printf("Switch with function: %d\n", switch_val);
+        printf("Pot 0: %d\n", get_brake_pedal_value());
+        printf("Pot 1: %d\n", get_gas_pedal_value());
+        printf("Switch 2: %d\n", is_hv_requested());
+        printf("Drive switch: %d\n\n", is_drive_requested());
+        __delay_ms(1000);
     }
 #endif
     
@@ -162,7 +164,7 @@ void main() {
                     __delay_ms(DRIVE_REQ_DELAY_MS);
                     
                     // Now check
-                    if (get_brake_pedal_value() == PEDAL_MAX) {
+                    if (get_brake_pedal_value() >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
                         // Brake pressed
                         change_state(DRIVE);                        
                     } else {
