@@ -7,3 +7,6 @@ Completed
 
 In-progress
 - Finite state machine
+  - Get precharging state from motor controller
+  - Send torque requests to motor controller
+  - and more...
