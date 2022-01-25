@@ -1,6 +1,6 @@
 # Vehicle Control Unit
 
-This is the *prototype* code for the vehicle control unit, a board that manages the soft state of the car. It hosts a finite state machine (FSM) to control this state. This code can be run on a PICDuino microcontroller to physically test it using breadboard controls.
+This is the *prototype* code for the vehicle control unit, a board that manages the overall state of the car. It uses a finite state machine (FSM) to control this state. Although this code is intended to be run on its original hardware, it can be run on a PICDuino microcontroller to physically test it using breadboard controls.
 
 ## Progress
 ### Completed
