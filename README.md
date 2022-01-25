@@ -1,18 +1,25 @@
 # Vehicle Control Unit
 
-This is the *prototype* code for the vehicle control unit, a board that manages the soft state of the car. It hosts a finite state machine (FSM) to control this state. This code can be run on a PICDuino microcontroller to test the code.
+This is the *prototype* code for the vehicle control unit, a board that manages the soft state of the car. It hosts a finite state machine (FSM) to control this state. This code can be run on a PICDuino microcontroller to physically test it using breadboard controls.
 
-## Completed
+## Progress
+### Completed
 - Breadboard circuit for PICDuino
 
-## In-progress
+### In-progress
 - Finite state machine
   - Get precharging state from motor controller
   - Send torque requests to motor controller
   - and more...
 
-## How to setup breadboard for PICDuino
-### Prerequisites
+## Breadboard circuit for PICDuino
+This circuit simulates some of the real controls in the car. These controls are:
+- Brake pedal
+- Gas pedal
+- High voltage switch
+- Drive switch
+
+### How to setup
 1. PICDuino microcontroller
 2. Breadboard circuit with the following components shown below
 3. A hex wrench to turn the potentiometers
