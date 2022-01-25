@@ -32,6 +32,3 @@ This shows the proper mapping of the breadboard circuit to the PICDuino. You mus
 *These directions are with respect to the image.*
 - The potentiometers are turned from right (min value=0) to left (max value=4095) to increase the value.
 - The switches are configured with left state being off (0) and right state being on (1).
-
-## TODO
-- Create a proper circuit diagram
