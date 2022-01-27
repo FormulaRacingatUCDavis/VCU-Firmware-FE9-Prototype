@@ -64,8 +64,8 @@ unsigned int conservative_timer_ms = 0;
 state_t state = LV;
 error_t error = NONE;
 
-const char* state_names[] = {"LV", "PRECHARGING", "HV_ENABLED", "DRIVE", "FAULT"};
-const char* error_names[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", "BRAKE_NOT_PRESSED"};
+const char* STATE_NAMES[] = {"LV", "PRECHARGING", "HV_ENABLED", "DRIVE", "FAULT"};
+const char* ERROR_NAMES[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", "BRAKE_NOT_PRESSED"};
 
 void change_state(const state_t new_state) {
     // Handle edge cases
@@ -75,7 +75,7 @@ void change_state(const state_t new_state) {
     }
         
     // Print state transition
-    printf("%s -> %s\n", state_names[state], state_names[new_state]);
+    printf("%s -> %s\n", STATE_NAMES[state], STATE_NAMES[new_state]);
     
     state = new_state;
 }
@@ -83,7 +83,7 @@ void change_state(const state_t new_state) {
 void report_fault(error_t _error) {
     change_state(FAULT);
     
-    printf("Error: %s\n", error_names[_error]);
+    printf("Error: %s\n", ERROR_NAMES[_error]);
     
     // Cause of error
     error = _error;
@@ -108,7 +108,7 @@ void main() {
     }
     #endif
     
-    printf("Starting in %s state", state_names[state]);
+    printf("Starting in %s state", STATE_NAMES[state]);
     
     while (1) {
         // Main FSM
