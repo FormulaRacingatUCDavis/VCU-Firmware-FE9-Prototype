@@ -20,10 +20,10 @@ typedef enum {
     BRAKE_NOT_PRESSED
 } error_t;
 
-// Breadboard components
+// Controls
 
 // Switches
-// On the breadboard: 0 when flipped left, 1 when flipped right
+// 0 means off, 1 means on
 
 uint8_t is_hv_requested() {
     return IO_RB2_GetValue();
@@ -34,7 +34,7 @@ uint8_t is_drive_requested() {
 }
 
 // Pedals
-// On the breadboard, the range of values is 0 to 4095
+// On the breadboard, the range of values for the potentiometer is 0 to 4095
 
 #define PEDAL_MAX 4095
 
@@ -50,8 +50,12 @@ uint16_t get_gas_pedal_value() {
     return ADCC_GetSingleConversion(channel_ANB1);
 }
 
-// Precharging state variables
+// How long to wait for pre-charging to finish before timing out
 #define MAX_CONSERVATION_SECS 4
+// Keeps track of timer waiting for pre-charging
+unsigned int conservative_timer_ms = 0;
+// Delay between checking pre-charging state
+#define AWAIT_PRECHARGING_DELAY_MS 100
 
 // High voltage state variables
 #define DRIVE_REQ_DELAY_MS 1000
@@ -60,12 +64,8 @@ uint16_t get_gas_pedal_value() {
 state_t state = LV;
 error_t error = NONE;
 
-// Used for precharging conservative timer
-unsigned int conservative_timer_secs = 0;
-bool is_precharging_initialized = false;
-
-const char* state_names[] = {"LV", "PRECHARGING", "HV_ENABLED", "DRIVE", "FAULT"};
-const char* error_names[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", "BRAKE_NOT_PRESSED"};
+const char* STATE_NAMES[] = {"LV", "PRECHARGING", "HV_ENABLED", "DRIVE", "FAULT"};
+const char* ERROR_NAMES[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", "BRAKE_NOT_PRESSED"};
 
 void change_state(const state_t new_state) {
     // Handle edge cases
@@ -73,14 +73,9 @@ void change_state(const state_t new_state) {
         // Reset the error cause when exiting fault state
         error = NONE;
     }
-    
-    if (state == PRECHARGING && new_state != PRECHARGING) {
-        // Reset flag for next time we precharge the car
-        is_precharging_initialized = false;
-    }
-    
+        
     // Print state transition
-    printf("%s -> %s\n", state_names[state], state_names[new_state]);
+    printf("%s -> %s\n", STATE_NAMES[state], STATE_NAMES[new_state]);
     
     state = new_state;
 }
@@ -88,7 +83,7 @@ void change_state(const state_t new_state) {
 void report_fault(error_t _error) {
     change_state(FAULT);
     
-    printf("Error: %s\n", error_names[_error]);
+    printf("Error: %s\n", ERROR_NAMES[_error]);
     
     // Cause of error
     error = _error;
@@ -102,7 +97,7 @@ void main() {
     ADCC_DischargeSampleCapacitor();
 
     // Only for debugging. Use this to test the controls on the breadboard
-#if 0
+    #if 0
     while (1)
     {
         printf("Pot 0: %d\n", get_brake_pedal_value());
@@ -111,9 +106,9 @@ void main() {
         printf("Drive switch: %d\n\n", is_drive_requested());
         __delay_ms(1000);
     }
-#endif
+    #endif
     
-    printf("Starting in %s state", state_names[state]);
+    printf("Starting in %s state", STATE_NAMES[state]);
     
     while (1) {
         // Main FSM
@@ -133,9 +128,8 @@ void main() {
                 }
                 break;
             case PRECHARGING:
-                if (conservative_timer_secs >= MAX_CONSERVATION_SECS) {
-                    // Precharging timed out
-                    // Took too long to charge up
+                if (conservative_timer_ms >= MAX_CONSERVATION_SECS * 1000) {
+                    // Pre-charging took too long
                     report_fault(CONSERVATIVE_TIMER_MAXED);
                     break;
                 }
@@ -148,9 +142,10 @@ void main() {
                     break;
                 }
                 
-                // TODO: update the timer using clock cycles instead
-                __delay_ms(1000);
-                conservative_timer_secs += 1;
+                // TODO: check using clock cycles or system clock instead
+                // Check if pre-charge is finished for every delay
+                __delay_ms(AWAIT_PRECHARGING_DELAY_MS);
+                conservative_timer_ms += AWAIT_PRECHARGING_DELAY_MS;
                 break;
             case HV_ENABLED:
                 if (!is_hv_requested()) {
