@@ -25,8 +25,9 @@ This circuit simulates some of the real controls in the car. These controls are:
 3. A hex wrench to turn the potentiometers
 4. USB-A to USB-B cable to connect PICDuino to your computer
 
-![IMG_3884 1](https://user-images.githubusercontent.com/72328335/150894564-20cec0b3-8b81-4c29-87c8-1ceceed3ae96.JPG)
+![vcu-circuit](https://user-images.githubusercontent.com/72328335/151675667-8e6ae435-11d8-482e-8f56-c0d1faa9b7b1.png)
 This shows the proper mapping of the breadboard circuit to the PICDuino. You must connect the jumper cables to the right pins in order for the code to work.
+*Note: if the controls are not reading values properly, try changing the pins they are connected to. Afterwards, you have to modify the pin configuration in MPLAB X IDE and change the code to use the right pins.*
 
 ### How to use
 *These directions are with respect to the image.*
