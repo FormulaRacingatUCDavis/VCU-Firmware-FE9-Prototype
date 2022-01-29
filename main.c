@@ -171,7 +171,11 @@ void main() {
                 }
                 break;
             case DRIVE:
-                // TODO
+                if (!is_drive_requested()) {
+                    // Drive switch was flipped off
+                    // Revert to HV
+                    change_state(HV_ENABLED);
+                }
                 break;
             case FAULT:
                 switch (error) {
