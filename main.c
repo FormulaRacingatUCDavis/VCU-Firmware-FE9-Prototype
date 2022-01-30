@@ -75,7 +75,7 @@ void change_state(const state_t new_state) {
     }
         
     // Print state transition
-    printf("%s -> %s\n", STATE_NAMES[state], STATE_NAMES[new_state]);
+    printf("%s -> %s\r\n", STATE_NAMES[state], STATE_NAMES[new_state]);
     
     state = new_state;
 }
@@ -83,7 +83,7 @@ void change_state(const state_t new_state) {
 void report_fault(error_t _error) {
     change_state(FAULT);
     
-    printf("Error: %s\n", ERROR_NAMES[_error]);
+    printf("Error: %s\r\n", ERROR_NAMES[_error]);
     
     // Cause of error
     error = _error;
@@ -100,10 +100,10 @@ void main() {
     #if 0
     while (1)
     {
-        printf("Pot 0: %d\n", get_brake_pedal_value());
-        printf("Pot 1: %d\n", get_gas_pedal_value());
-        printf("Switch 2: %d\n", is_hv_requested());
-        printf("Drive switch: %d\n\n", is_drive_requested());
+        printf("Pot 0: %d\r\n", get_brake_pedal_value());
+        printf("Pot 1: %d\r\n", get_gas_pedal_value());
+        printf("Switch 2: %d\r\n", is_hv_requested());
+        printf("Drive switch: %d\r\n\n", is_drive_requested());
         __delay_ms(1000);
     }
     #endif
