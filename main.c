@@ -156,18 +156,13 @@ void main() {
                     break;
                 }
 
-                if (is_drive_requested()) {
-                    // Driver just flipped drive switch
-                    // Give driver some time to press brake
-                    __delay_ms(DRIVE_REQ_DELAY_MS);
-                    
-                    // Now check
-                    if (get_brake_pedal_value() >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
-                        // Brake pressed
+                if (get_brake_pedal_value() >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
+                    // Driver pressed break 
+                    // Need to also flip on drive switch to drive
+                    if (is_drive_requested()) {
+                        // Drive switch flipped on
+                        // Go to drive
                         change_state(DRIVE);                        
-                    } else {
-                        // Brake not pressed
-                        report_fault(BRAKE_NOT_PRESSED);
                     }
                 }
                 break;
@@ -182,7 +177,6 @@ void main() {
                 if (!is_hv_requested()) {
                     // HV switched flipped off, so can't drive
                     report_fault(HV_DISABLED_WHILE_DRIVE);
-                    break;
                 }
                 break;
             case FAULT:
