@@ -17,7 +17,8 @@ typedef enum {
     NONE,
     DRIVE_REQUEST_FROM_LV,
     CONSERVATIVE_TIMER_MAXED,
-    BRAKE_NOT_PRESSED
+    BRAKE_NOT_PRESSED,
+    HV_DISABLED_WHILE_DRIVE
 } error_t;
 
 // Controls
@@ -65,7 +66,7 @@ state_t state = LV;
 error_t error = NONE;
 
 const char* STATE_NAMES[] = {"LV", "PRECHARGING", "HV_ENABLED", "DRIVE", "FAULT"};
-const char* ERROR_NAMES[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", "BRAKE_NOT_PRESSED"};
+const char* ERROR_NAMES[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", "BRAKE_NOT_PRESSED", "HV_DISABLED_WHILE_DRIVE"};
 
 void change_state(const state_t new_state) {
     // Handle edge cases
@@ -175,6 +176,13 @@ void main() {
                     // Drive switch was flipped off
                     // Revert to HV
                     change_state(HV_ENABLED);
+                   break;
+                }
+
+                if (!is_hv_requested()) {
+                    // HV switched flipped off, so can't drive
+                    report_fault(HV_DISABLED_WHILE_DRIVE);
+                    break;
                 }
                 break;
             case FAULT:
