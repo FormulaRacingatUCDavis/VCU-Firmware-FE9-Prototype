@@ -17,7 +17,7 @@ typedef enum {
     NONE,
     DRIVE_REQUEST_FROM_LV,
     CONSERVATIVE_TIMER_MAXED,
-    /*BRAKE_NOT_PRESSED,*/
+    BRAKE_NOT_PRESSED,
     HV_DISABLED_WHILE_DRIVE
 } error_t;
 
@@ -66,7 +66,7 @@ state_t state = LV;
 error_t error = NONE;
 
 const char* STATE_NAMES[] = {"LV", "PRECHARGING", "HV_ENABLED", "DRIVE", "FAULT"};
-const char* ERROR_NAMES[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", /*"BRAKE_NOT_PRESSED",*/ "HV_DISABLED_WHILE_DRIVE"};
+const char* ERROR_NAMES[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", "BRAKE_NOT_PRESSED", "HV_DISABLED_WHILE_DRIVE"};
 
 void change_state(const state_t new_state) {
     // Handle edge cases
@@ -155,14 +155,19 @@ void main() {
                     change_state(LV);
                     break;
                 }
-
-                if (get_brake_pedal_value() >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
-                    // Driver pressed break 
-                    // Need to also flip on drive switch to drive
-                    if (is_drive_requested()) {
-                        // Drive switch flipped on
-                        // Go to drive
+                
+                if (is_drive_requested()) {
+                    // Driver flipped on drive switch
+                    // Need to press on pedal at the same time to go to drive
+                    if (get_brake_pedal_value() >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
+                        
                         change_state(DRIVE);                        
+                    }
+                    else
+                    {
+                        // Driver didn't press pedal but drive switch on
+                        // Go to fault
+                        report_fault(BRAKE_NOT_PRESSED);
                     }
                 }
                 break;
@@ -195,15 +200,16 @@ void main() {
                             change_state(LV);
                         }
                         break;
-                    // case BRAKE_NOT_PRESSED:
-                    //     if (!is_drive_requested()) {
-                    //         // Ask driver to reset drive switch and try again
-                    //         change_state(HV_ENABLED);
-                    //     }
-                    //     break;
+                    case BRAKE_NOT_PRESSED:
+                        if (!is_drive_requested()) {
+                            // Ask driver to reset drive switch and try again
+                            change_state(HV_ENABLED);
+                        }
+                        break;
                     case HV_DISABLED_WHILE_DRIVE:
-                        if (is_hv_requested()) {
-                            change_state(DRIVE);
+                        if (!is_drive_requested()) {
+                            // Ask driver to flip off drive switch to properly go back to LV
+                            change_state(LV);
                         }
                         break;
                 }
