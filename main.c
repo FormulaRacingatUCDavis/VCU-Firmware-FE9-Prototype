@@ -17,7 +17,8 @@ typedef enum {
     NONE,
     DRIVE_REQUEST_FROM_LV,
     CONSERVATIVE_TIMER_MAXED,
-    BRAKE_NOT_PRESSED
+    BRAKE_NOT_PRESSED,
+    HV_DISABLED_WHILE_DRIVE
 } error_t;
 
 // Controls
@@ -65,7 +66,7 @@ state_t state = LV;
 error_t error = NONE;
 
 const char* STATE_NAMES[] = {"LV", "PRECHARGING", "HV_ENABLED", "DRIVE", "FAULT"};
-const char* ERROR_NAMES[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", "BRAKE_NOT_PRESSED"};
+const char* ERROR_NAMES[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", "BRAKE_NOT_PRESSED", "HV_DISABLED_WHILE_DRIVE"};
 
 void change_state(const state_t new_state) {
     // Handle edge cases
@@ -154,18 +155,18 @@ void main() {
                     change_state(LV);
                     break;
                 }
-
+                
                 if (is_drive_requested()) {
-                    // Driver just flipped drive switch
-                    // Give driver some time to press brake
-                    __delay_ms(DRIVE_REQ_DELAY_MS);
-                    
-                    // Now check
+                    // Driver flipped on drive switch
+                    // Need to press on pedal at the same time to go to drive
                     if (get_brake_pedal_value() >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
-                        // Brake pressed
+                        
                         change_state(DRIVE);                        
-                    } else {
-                        // Brake not pressed
+                    }
+                    else
+                    {
+                        // Driver didn't press pedal but drive switch on
+                        // Go to fault
                         report_fault(BRAKE_NOT_PRESSED);
                     }
                 }
@@ -175,6 +176,12 @@ void main() {
                     // Drive switch was flipped off
                     // Revert to HV
                     change_state(HV_ENABLED);
+                   break;
+                }
+
+                if (!is_hv_requested()) {
+                    // HV switched flipped off, so can't drive
+                    report_fault(HV_DISABLED_WHILE_DRIVE);
                 }
                 break;
             case FAULT:
@@ -197,6 +204,12 @@ void main() {
                         if (!is_drive_requested()) {
                             // Ask driver to reset drive switch and try again
                             change_state(HV_ENABLED);
+                        }
+                        break;
+                    case HV_DISABLED_WHILE_DRIVE:
+                        if (!is_drive_requested()) {
+                            // Ask driver to flip off drive switch to properly go back to LV
+                            change_state(LV);
                         }
                         break;
                 }
