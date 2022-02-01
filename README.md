@@ -20,7 +20,6 @@ This circuit simulates some of the real controls in the car. These controls are:
 - Drive switch
 
 ### How to setup
-#### Hardware
 1. PICDuino microcontroller
 2. Breadboard circuit with the following components shown below
 3. A hex wrench to turn the potentiometers
@@ -30,13 +29,6 @@ This circuit simulates some of the real controls in the car. These controls are:
 This shows the proper mapping of the breadboard circuit to the PICDuino. You must connect the jumper cables to the right pins in order for the code to work.
 
 *Note: if the controls are not reading values properly, try changing the pins they are connected to. Afterwards, you have to modify the pin configuration in MPLAB X IDE and change the code to use the right pins.*
-
-#### Software
-To print to the serial monitor over UART:
-1. Open MCC in MPLAB X IDE
-2. Go to Resource Management -> UART1
-3. Under the software settings, check the box that redirects STDIO to UART
-4. Apply changes
 
 ### How to use
 *These directions are with respect to the image.*
