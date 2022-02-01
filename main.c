@@ -18,7 +18,7 @@ typedef enum {
     DRIVE_REQUEST_FROM_LV,
     CONSERVATIVE_TIMER_MAXED,
     BRAKE_NOT_PRESSED,
-    HV_DISABLED_WHILE_DRIVE
+    HV_DISABLED_WHILE_DRIVING
 } error_t;
 
 // Controls
@@ -162,11 +162,8 @@ void main() {
                     if (get_brake_pedal_value() >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
                         
                         change_state(DRIVE);                        
-                    }
-                    else
-                    {
-                        // Driver didn't press pedal but drive switch on
-                        // Go to fault
+                    } else {
+                        // Driver didn't press pedal
                         report_fault(BRAKE_NOT_PRESSED);
                     }
                 }
@@ -181,7 +178,7 @@ void main() {
 
                 if (!is_hv_requested()) {
                     // HV switched flipped off, so can't drive
-                    report_fault(HV_DISABLED_WHILE_DRIVE);
+                    report_fault(HV_DISABLED_WHILE_DRIVING);
                 }
                 break;
             case FAULT:
@@ -206,7 +203,7 @@ void main() {
                             change_state(HV_ENABLED);
                         }
                         break;
-                    case HV_DISABLED_WHILE_DRIVE:
+                    case HV_DISABLED_WHILE_DRIVING:
                         if (!is_drive_requested()) {
                             // Ask driver to flip off drive switch to properly go back to LV
                             change_state(LV);
