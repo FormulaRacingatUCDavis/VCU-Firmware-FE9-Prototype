@@ -5,7 +5,6 @@
 
 // States
 
-// TODO: add calibrating state and possibly calibrating helper
 typedef enum {
     LV,
     PRECHARGING,
@@ -14,7 +13,7 @@ typedef enum {
     FAULT
 } state_t;
 
-// TODO: add sensor differential error
+// TODO: add sensor discrepancy error
 typedef enum {
     NONE,
     DRIVE_REQUEST_FROM_LV,
@@ -36,8 +35,6 @@ uint8_t is_drive_requested() {
     return IO_RA0_GetValue();
 }
 
-// TODO: add calibration_requested
-
 // Pedals
 // On the breadboard, the range of values for the potentiometer is 0 to 4095
 
@@ -47,9 +44,11 @@ uint8_t is_drive_requested() {
 // So give some room for error when driver presses on brake
 #define BRAKE_ERROR_TOLERANCE 20
 
-// TODO: add variables for throttle and brake 1/2, max/min, range
+// TODO: add variables for throttle and brake sensor 1/2, max/min, range
+// see global variables in pedal node
 
-// TODO: replace below functions with single function to update all
+// TODO: replace below functions with single function to update all relevant variables
+// as of now we don't really have to add more pin reads and potentiometers but it should be ready to implement when needed
 // See update_ADC_SAR() in pedal node
 
 uint16_t get_brake_pedal_value() {
@@ -74,9 +73,8 @@ unsigned int conservative_timer_ms = 0;
 state_t state = LV;
 error_t error = NONE;
 
-// TODO: add new state(s) and error
-// see top of file
 const char* STATE_NAMES[] = {"LV", "PRECHARGING", "HV_ENABLED", "DRIVE", "FAULT"};
+// TODO: add sensor discrepancy error
 const char* ERROR_NAMES[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", "BRAKE_NOT_PRESSED", "HV_DISABLED_WHILE_DRIVE"};
 
 void change_state(const state_t new_state) {
@@ -105,10 +103,12 @@ void report_fault(error_t _error) {
 // see CY_ISR(isr_CAN_Handler) in pedal node
 
 // TODO: write function to check differential between the throttle sensors and brake sensors
+// returns if the sensor discrepancy is > 3%
 // see check_differential() in pedal node
 
 // TODO: write functions to save and load calibration data
 // see EEPROM functions in pedal node
+// probably dont need this if we are always recalibrating on startup/lv
 
 void main() {
     // Reset PIC18
@@ -131,6 +131,9 @@ void main() {
     
     printf("Starting in %s state", STATE_NAMES[state]);
     
+    // TODO: set throttle and brake mins/maxs to opposite of range
+    // see calibrating state in main() in pedal node
+    
     while (1) {
         // Main FSM
         // Source: https://docs.google.com/document/d/1q0RL4FmDfVuAp6xp9yW7O-vIvnkwoAXWssC3-vBmNGM/edit?usp=sharing
@@ -148,15 +151,11 @@ void main() {
                     change_state(PRECHARGING);
                 }
                 
-                // TODO: add calibration request check to change to calibrating state
+                // TODO: add calibration
+                // update values, check if > max or < min and update accordingly
+                // see calibrating helper state in main() in pedal node
                 
                 break;
-                
-            // TODO: add calibrating state
-            // see main() in pedal node
-            // could also add calibrating helper state like the old code or just write a loop into this state
-            // return to LV when calibration request is turned off
-            
             case PRECHARGING:
                 if (conservative_timer_ms >= MAX_CONSERVATION_SECS * 1000) {
                     // Pre-charging took too long
@@ -210,7 +209,7 @@ void main() {
                     report_fault(HV_DISABLED_WHILE_DRIVING);
                 }
                 
-                // TODO: add check for sensor differential, send fault if so
+                // TODO: add check for sensor discrepancy, send fault if so
                 
                 break;
             case FAULT:
@@ -242,8 +241,8 @@ void main() {
                         }
                         break;
                         
-                    // TODO: add sensor differential fault
-                    // how to resolve?
+                    // TODO: add sensor discrepancy fault
+                    // unresolvable?
                 }
                 break;
         }
