@@ -13,6 +13,7 @@ typedef enum {
     FAULT
 } state_t;
 
+// TODO: add sensor discrepancy error
 typedef enum {
     NONE,
     DRIVE_REQUEST_FROM_LV,
@@ -43,6 +44,13 @@ uint8_t is_drive_requested() {
 // So give some room for error when driver presses on brake
 #define BRAKE_ERROR_TOLERANCE 20
 
+// TODO: add variables for throttle and brake sensor 1/2, max/min, range
+// see global variables in pedal node
+
+// TODO: replace below functions with single function to update all relevant variables
+// as of now we don't really have to add more pin reads and potentiometers but it should be ready to implement when needed
+// See update_ADC_SAR() in pedal node
+
 uint16_t get_brake_pedal_value() {
     return ADCC_GetSingleConversion(channel_ANB0);
 }
@@ -66,6 +74,7 @@ state_t state = LV;
 error_t error = NONE;
 
 const char* STATE_NAMES[] = {"LV", "PRECHARGING", "HV_ENABLED", "DRIVE", "FAULT"};
+// TODO: add sensor discrepancy error
 const char* ERROR_NAMES[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", "BRAKE_NOT_PRESSED", "HV_DISABLED_WHILE_DRIVE"};
 
 void change_state(const state_t new_state) {
@@ -90,6 +99,17 @@ void report_fault(error_t _error) {
     error = _error;
 }
 
+// TODO: write function to process and send pedal and brake data over CAN
+// see CY_ISR(isr_CAN_Handler) in pedal node
+
+// TODO: write function to check differential between the throttle sensors and brake sensors
+// returns if the sensor discrepancy is > 3%
+// see check_differential() in pedal node
+
+// TODO: write functions to save and load calibration data
+// see EEPROM functions in pedal node
+// probably dont need this if we are always recalibrating on startup/lv
+
 void main() {
     // Reset PIC18
     SYSTEM_Initialize();
@@ -111,6 +131,9 @@ void main() {
     
     printf("Starting in %s state", STATE_NAMES[state]);
     
+    // TODO: set throttle and brake mins/maxs to opposite of range
+    // see calibrating state in main() in pedal node
+    
     while (1) {
         // Main FSM
         // Source: https://docs.google.com/document/d/1q0RL4FmDfVuAp6xp9yW7O-vIvnkwoAXWssC3-vBmNGM/edit?usp=sharing
@@ -127,6 +150,11 @@ void main() {
                     // Start charging the car to high voltage state
                     change_state(PRECHARGING);
                 }
+                
+                // TODO: add calibration
+                // update values, check if > max or < min and update accordingly
+                // see calibrating helper state in main() in pedal node
+                
                 break;
             case PRECHARGING:
                 if (conservative_timer_ms >= MAX_CONSERVATION_SECS * 1000) {
@@ -180,6 +208,9 @@ void main() {
                     // HV switched flipped off, so can't drive
                     report_fault(HV_DISABLED_WHILE_DRIVING);
                 }
+                
+                // TODO: add check for sensor discrepancy, send fault if so
+                
                 break;
             case FAULT:
                 switch (error) {
@@ -209,6 +240,9 @@ void main() {
                             change_state(LV);
                         }
                         break;
+                        
+                    // TODO: add sensor discrepancy fault
+                    // unresolvable?
                 }
                 break;
         }
