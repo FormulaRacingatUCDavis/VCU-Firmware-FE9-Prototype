@@ -45,23 +45,23 @@ uint8_t is_drive_requested() {
 #define BRAKE_ERROR_TOLERANCE 20
 
 
-uint_16 throttle1 = 0;
-uint_16 throttle2 = 0;
-uint_16 throttle1_max= 0;
-uint_16 throttle2_max = 0;
-uint_16 throttle1_min = 0;
-uint_16 throttle2_min = 0;
-uint_16 throttle_avg = 0;
-uint_16 throttle_range = 0;
+uint16_t throttle1 = 0;
+uint16_t throttle2 = 0;
+uint16_t throttle1_max= 0;
+uint16_t throttle2_max = 0;
+uint16_t throttle1_min = 0;
+uint16_t throttle2_min = 0;
+uint16_t throttle_avg = 0;
+uint16_t throttle_range = 0;
 
-uint_16 brake1 = 0;
-uint_16 brake2 = 0;
-uint_16 brake1_max= 0;
-uint_16 brake2_max= 0;
-uint_16 brake1_min = 0;
-uint_16 brake2_min = 0;
-uint_16 brake_avg = 0;
-uint_16 brake_range = 0;
+uint16_t brake1 = 0;
+uint16_t brake2 = 0;
+uint16_t brake1_max= 0;
+uint16_t brake2_max= 0;
+uint16_t brake1_min = 0;
+uint16_t brake2_min = 0;
+uint16_t brake_avg = 0;
+uint16_t brake_range = 0;
 
 
 // TODO: replace below functions with single function to update all relevant variables
