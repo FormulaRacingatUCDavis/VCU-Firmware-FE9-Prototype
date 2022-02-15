@@ -2,6 +2,8 @@
 
 This is the *prototype* code for the vehicle control unit, a board that manages the overall state of the car. It uses a finite state machine (FSM) to control this state. Although this code is intended to be run on its original hardware, it can be run on a PICDuino microcontroller to physically test it using breadboard controls.
 
+![fsm-diagram](https://github.com/FormulaRacingatUCDavis/VCU-Firmware-FE9/blob/main/Vehicle%20State%20Machine.drawio.png?raw=true)
+
 ## Progress
 ### Completed
 - Breadboard circuit for PICDuino
