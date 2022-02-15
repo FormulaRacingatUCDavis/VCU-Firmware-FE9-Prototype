@@ -47,31 +47,26 @@ uint8_t is_drive_requested() {
 
 uint16_t throttle1 = 0;
 uint16_t throttle2 = 0;
-uint16_t throttle1_max = 0;
-uint16_t throttle2_max = 0;
-uint16_t throttle1_min = 0;
-uint16_t throttle2_min = 0;
-uint16_t throttle_avg = 0;
+uint16_t throttle_max = 0;
+uint16_t throttle_min = 0;
 uint16_t throttle_range = 0;
 
 uint16_t brake1 = 0;
 uint16_t brake2 = 0;
-uint16_t brake1_max = 0;
-uint16_t brake2_max = 0;
-uint16_t brake1_min = 0;
-uint16_t brake2_min = 0;
-uint16_t brake_avg = 0;
+uint16_t brake_max = 0;
+uint16_t brake_min = 0;
 uint16_t brake_range = 0;
 
 
 void update_sensor_vals() {
     throttle1 = ADCC_GetSingleConversion(channel_ANB1);
     throttle2 = ADCC_GetSingleConversion(channel_ANB1); // change pin to test discrepancy
-    throttle_avg = (throttle1 + throttle2) / 2;
 
     brake1 = ADCC_GetSingleConversion(channel_ANB0);
     brake2 = ADCC_GetSingleConversion(channel_ANB0); // change pin to test discrepancy
-    brake_avg = (brake1 + brake2) / 2;
+    
+    // TODO: add check for discrepancy between throttle sensors or brake sensors, send fault if > 3%
+    // see check_differential() in pedal node
 }
 
 
@@ -118,10 +113,6 @@ void report_fault(error_t _error) {
 // TODO: write function to process and send pedal and brake data over CAN
 // see CY_ISR(isr_CAN_Handler) in pedal node
 
-// TODO: write function to check differential between the throttle sensors and brake sensors
-// returns if the sensor discrepancy is > 3%
-// see check_differential() in pedal node
-
 // TODO: write functions to save and load calibration data
 // see EEPROM functions in pedal node
 // probably dont need this if we are always recalibrating on startup/lv
@@ -156,6 +147,9 @@ void main() {
     while (1) {
         // Main FSM
         // Source: https://docs.google.com/document/d/1q0RL4FmDfVuAp6xp9yW7O-vIvnkwoAXWssC3-vBmNGM/edit?usp=sharing
+        
+        update_sensor_vals();
+        
         switch (state) {
             case LV:
                 if (is_drive_requested()) {
@@ -206,7 +200,7 @@ void main() {
                 if (is_drive_requested()) {
                     // Driver flipped on drive switch
                     // Need to press on pedal at the same time to go to drive
-                    if (brake_avg >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
+                    if (brake1 >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
                         
                         change_state(DRIVE);                        
                     } else {
@@ -227,9 +221,6 @@ void main() {
                     // HV switched flipped off, so can't drive
                     report_fault(HV_DISABLED_WHILE_DRIVING);
                 }
-                
-                // TODO: add check for sensor discrepancy, send fault if so
-                
                 break;
             case FAULT:
                 switch (error) {
