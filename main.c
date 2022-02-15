@@ -47,7 +47,7 @@ uint8_t is_drive_requested() {
 
 uint16_t throttle1 = 0;
 uint16_t throttle2 = 0;
-uint16_t throttle1_max= 0;
+uint16_t throttle1_max = 0;
 uint16_t throttle2_max = 0;
 uint16_t throttle1_min = 0;
 uint16_t throttle2_min = 0;
@@ -56,25 +56,24 @@ uint16_t throttle_range = 0;
 
 uint16_t brake1 = 0;
 uint16_t brake2 = 0;
-uint16_t brake1_max= 0;
-uint16_t brake2_max= 0;
+uint16_t brake1_max = 0;
+uint16_t brake2_max = 0;
 uint16_t brake1_min = 0;
 uint16_t brake2_min = 0;
 uint16_t brake_avg = 0;
 uint16_t brake_range = 0;
 
 
-// TODO: replace below functions with single function to update all relevant variables
-// as of now we don't really have to add more pin reads and potentiometers but it should be ready to implement when needed
-// See update_ADC_SAR() in pedal node
+void update_sensor_vals() {
+    throttle1 = ADCC_GetSingleConversion(channel_ANB1);
+    throttle2 = ADCC_GetSingleConversion(channel_ANB1); // change pin to test discrepancy
+    throttle_avg = (throttle1 + throttle2) / 2;
 
-uint16_t get_brake_pedal_value() {
-    return ADCC_GetSingleConversion(channel_ANB0);
+    brake1 = ADCC_GetSingleConversion(channel_ANB0);
+    brake2 = ADCC_GetSingleConversion(channel_ANB0); // change pin to test discrepancy
+    brake_avg = (brake1 + brake2) / 2;
 }
 
-uint16_t get_gas_pedal_value() {
-    return ADCC_GetSingleConversion(channel_ANB1);
-}
 
 // How long to wait for pre-charging to finish before timing out
 #define MAX_CONSERVATION_SECS 4
@@ -138,9 +137,12 @@ void main() {
     #if 0
     while (1)
     {
-        printf("Pot 0: %d\r\n", get_brake_pedal_value());
-        printf("Pot 1: %d\r\n", get_gas_pedal_value());
-        printf("Switch 2: %d\r\n", is_hv_requested());
+        update_sensor_vals();
+        printf("Throttle 1: %d\r\n", throttle1);
+        printf("Throttle 2: %d\r\n", throttle2);
+        printf("Brake 1: %d\r\n", brake1);
+        printf("Brake 2: %d\r\n", brake2);
+        printf("HV switch: %d\r\n", is_hv_requested());
         printf("Drive switch: %d\r\n\n", is_drive_requested());
         __delay_ms(1000);
     }
@@ -204,7 +206,7 @@ void main() {
                 if (is_drive_requested()) {
                     // Driver flipped on drive switch
                     // Need to press on pedal at the same time to go to drive
-                    if (get_brake_pedal_value() >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
+                    if (brake_avg >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
                         
                         change_state(DRIVE);                        
                     } else {
