@@ -44,8 +44,25 @@ uint8_t is_drive_requested() {
 // So give some room for error when driver presses on brake
 #define BRAKE_ERROR_TOLERANCE 20
 
-// TODO: add variables for throttle and brake sensor 1/2, max/min, range
-// see global variables in pedal node
+
+uint_16 throttle1 = 0;
+uint_16 throttle2 = 0;
+uint_16 throttle1_max= 0;
+uint_16 throttle2_max = 0;
+uint_16 throttle1_min = 0;
+uint_16 throttle2_min = 0;
+uint_16 throttle_avg = 0;
+uint_16 throttle_range = 0;
+
+uint_16 brake1 = 0;
+uint_16 brake2 = 0;
+uint_16 brake1_max= 0;
+uint_16 brake2_max= 0;
+uint_16 brake1_min = 0;
+uint_16 brake2_min = 0;
+uint_16 brake_avg = 0;
+uint_16 brake_range = 0;
+
 
 // TODO: replace below functions with single function to update all relevant variables
 // as of now we don't really have to add more pin reads and potentiometers but it should be ready to implement when needed
