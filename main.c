@@ -47,34 +47,28 @@ uint8_t is_drive_requested() {
 
 uint16_t throttle1 = 0;
 uint16_t throttle2 = 0;
-uint16_t throttle1_max= 0;
-uint16_t throttle2_max = 0;
-uint16_t throttle1_min = 0;
-uint16_t throttle2_min = 0;
-uint16_t throttle_avg = 0;
+uint16_t throttle_max = 0;
+uint16_t throttle_min = 0;
 uint16_t throttle_range = 0;
 
 uint16_t brake1 = 0;
 uint16_t brake2 = 0;
-uint16_t brake1_max= 0;
-uint16_t brake2_max= 0;
-uint16_t brake1_min = 0;
-uint16_t brake2_min = 0;
-uint16_t brake_avg = 0;
+uint16_t brake_max = 0;
+uint16_t brake_min = 0;
 uint16_t brake_range = 0;
 
 
-// TODO: replace below functions with single function to update all relevant variables
-// as of now we don't really have to add more pin reads and potentiometers but it should be ready to implement when needed
-// See update_ADC_SAR() in pedal node
+void update_sensor_vals() {
+    throttle1 = ADCC_GetSingleConversion(channel_ANB1);
+    throttle2 = ADCC_GetSingleConversion(channel_ANB1); // change pin to test discrepancy
 
-uint16_t get_brake_pedal_value() {
-    return ADCC_GetSingleConversion(channel_ANB0);
+    brake1 = ADCC_GetSingleConversion(channel_ANB0);
+    brake2 = ADCC_GetSingleConversion(channel_ANB0); // change pin to test discrepancy
+    
+    // TODO: add check for discrepancy between throttle sensors or brake sensors, send fault if > 3%
+    // see check_differential() in pedal node
 }
 
-uint16_t get_gas_pedal_value() {
-    return ADCC_GetSingleConversion(channel_ANB1);
-}
 
 // How long to wait for pre-charging to finish before timing out
 #define MAX_CONSERVATION_SECS 4
@@ -119,10 +113,6 @@ void report_fault(error_t _error) {
 // TODO: write function to process and send pedal and brake data over CAN
 // see CY_ISR(isr_CAN_Handler) in pedal node
 
-// TODO: write function to check differential between the throttle sensors and brake sensors
-// returns if the sensor discrepancy is > 3%
-// see check_differential() in pedal node
-
 // TODO: write functions to save and load calibration data
 // see EEPROM functions in pedal node
 // probably dont need this if we are always recalibrating on startup/lv
@@ -138,9 +128,12 @@ void main() {
     #if 0
     while (1)
     {
-        printf("Pot 0: %d\r\n", get_brake_pedal_value());
-        printf("Pot 1: %d\r\n", get_gas_pedal_value());
-        printf("Switch 2: %d\r\n", is_hv_requested());
+        update_sensor_vals();
+        printf("Throttle 1: %d\r\n", throttle1);
+        printf("Throttle 2: %d\r\n", throttle2);
+        printf("Brake 1: %d\r\n", brake1);
+        printf("Brake 2: %d\r\n", brake2);
+        printf("HV switch: %d\r\n", is_hv_requested());
         printf("Drive switch: %d\r\n\n", is_drive_requested());
         __delay_ms(1000);
     }
@@ -154,6 +147,9 @@ void main() {
     while (1) {
         // Main FSM
         // Source: https://docs.google.com/document/d/1q0RL4FmDfVuAp6xp9yW7O-vIvnkwoAXWssC3-vBmNGM/edit?usp=sharing
+        
+        update_sensor_vals();
+        
         switch (state) {
             case LV:
                 if (is_drive_requested()) {
@@ -204,7 +200,7 @@ void main() {
                 if (is_drive_requested()) {
                     // Driver flipped on drive switch
                     // Need to press on pedal at the same time to go to drive
-                    if (get_brake_pedal_value() >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
+                    if (brake1 >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
                         
                         change_state(DRIVE);                        
                     } else {
@@ -225,9 +221,6 @@ void main() {
                     // HV switched flipped off, so can't drive
                     report_fault(HV_DISABLED_WHILE_DRIVING);
                 }
-                
-                // TODO: add check for sensor discrepancy, send fault if so
-                
                 break;
             case FAULT:
                 switch (error) {
