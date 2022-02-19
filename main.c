@@ -19,7 +19,9 @@ typedef enum {
     DRIVE_REQUEST_FROM_LV,
     CONSERVATIVE_TIMER_MAXED,
     BRAKE_NOT_PRESSED,
-    HV_DISABLED_WHILE_DRIVING
+    HV_DISABLED_WHILE_DRIVING,
+    SENSOR_DISCREPANCY,
+    BRAKE_IMPLAUSIBLE
 } error_t;
 
 // Controls
@@ -49,26 +51,15 @@ uint16_t throttle1 = 0;
 uint16_t throttle2 = 0;
 uint16_t throttle_max = 0;
 uint16_t throttle_min = 0;
-uint16_t throttle_range = 0;
+uint16_t throttle_range = 0; // set after max and min values are calibrated
+uint16_t per_throttle1 = 0;
+uint16_t per_throttle2 = 0;
 
 uint16_t brake1 = 0;
 uint16_t brake2 = 0;
 uint16_t brake_max = 0;
 uint16_t brake_min = 0;
 uint16_t brake_range = 0;
-
-
-void update_sensor_vals() {
-    throttle1 = ADCC_GetSingleConversion(channel_ANB1);
-    throttle2 = ADCC_GetSingleConversion(channel_ANB1); // change pin to test discrepancy
-
-    brake1 = ADCC_GetSingleConversion(channel_ANB0);
-    brake2 = ADCC_GetSingleConversion(channel_ANB0); // change pin to test discrepancy
-    
-    // TODO: add check for discrepancy between throttle sensors or brake sensors, send fault if > 3%
-    // see check_differential() in pedal node
-}
-
 
 // How long to wait for pre-charging to finish before timing out
 #define MAX_CONSERVATION_SECS 4
@@ -84,9 +75,22 @@ unsigned int conservative_timer_ms = 0;
 state_t state = LV;
 error_t error = NONE;
 
-const char* STATE_NAMES[] = {"LV", "PRECHARGING", "HV_ENABLED", "DRIVE", "FAULT"};
-// TODO: add sensor discrepancy error
-const char* ERROR_NAMES[] = {"NONE", "DRIVE_REQUEST_FROM_LV", "CONSERVATIVE_TIMER_MAXED", "BRAKE_NOT_PRESSED", "HV_DISABLED_WHILE_DRIVE"};
+const char* STATE_NAMES[] = {
+    "LV", 
+    "PRECHARGING", 
+    "HV_ENABLED", 
+    "DRIVE", 
+    "FAULT"
+};
+const char* ERROR_NAMES[] = {
+    "NONE", 
+    "DRIVE_REQUEST_FROM_LV", 
+    "CONSERVATIVE_TIMER_MAXED", 
+    "BRAKE_NOT_PRESSED", 
+    "HV_DISABLED_WHILE_DRIVE",
+    "SENSOR_DISCREPANCY",
+    "BRAKE_IMPLAUSIBLE"
+};
 
 void change_state(const state_t new_state) {
     // Handle edge cases
@@ -109,6 +113,55 @@ void report_fault(error_t _error) {
     // Cause of error
     error = _error;
 }
+
+
+// check differential between the throttle sensors and brake sensors
+// returns true only if the sensor discrepancy is > 3%
+bool has_discrepancy() {
+    // check throttle
+    // calculate percentage of throttle 1
+    int16_t temp_throttle1 = throttle1;
+
+    if (temp_throttle1 > throttle_max) {
+        temp_throttle1 = throttle_max;
+    } else if (temp_throttle1 < throttle_min) {
+        temp_throttle1 = throttle_min;
+    }
+    per_throttle1 = (temp_throttle1-throttle_min) * 100 / (throttle_max - throttle_min);
+    
+    // calculate percentage of throttle 2
+    int16_t temp_throttle2 = throttle2;
+    if (temp_throttle2 > throttle_max) {
+        temp_throttle2 = throttle_max;
+    } else if( temp_throttle2 < throttle_min) {
+        temp_throttle2 = throttle_min;
+    }
+    per_throttle2 = (temp_throttle2-throttle_min) * 100 / (throttle_max - throttle_min);
+    
+    if (abs(per_throttle1-per_throttle2) > 3) {
+        return false;
+    } else {
+        return true;
+    } 
+}
+
+// state before sensor discrepancy error
+state_t temp_state = state;
+
+void update_sensor_vals() {
+    throttle1 = ADCC_GetSingleConversion(channel_ANB1);
+    throttle2 = ADCC_GetSingleConversion(channel_ANB1); // change pin to test discrepancy
+
+    brake1 = ADCC_GetSingleConversion(channel_ANB0);
+    brake2 = ADCC_GetSingleConversion(channel_ANB0); // change pin to test discrepancy
+
+    if (has_discrepancy()) {
+        report_fault(SENSOR_DISCREPANCY);
+    } else {
+        temp_state = state;
+    }
+}
+
 
 // TODO: write function to process and send pedal and brake data over CAN
 // see CY_ISR(isr_CAN_Handler) in pedal node
@@ -250,9 +303,14 @@ void main() {
                             change_state(LV);
                         }
                         break;
-                        
-                    // TODO: add sensor discrepancy fault
-                    // unresolvable?
+                    case SENSOR_DISCREPANCY:
+                        // TODO: stop power to motors if discrepancy persists for >100ms
+                        // see rule T.4.2.5 in FSAE 2022 rulebook
+                        if (!has_discrepancy) {
+                            // if discrepancy resolved, change back to previous state
+                            change_state(temp_state);
+                        }
+                        break;
                 }
                 break;
         }
