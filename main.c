@@ -13,7 +13,6 @@ typedef enum {
     FAULT
 } state_t;
 
-// TODO: add sensor discrepancy error
 typedef enum {
     NONE,
     DRIVE_REQUEST_FROM_LV,
@@ -115,13 +114,14 @@ void report_fault(error_t _error) {
 }
 
 
-// check differential between the throttle sensors and brake sensors
+// check differential between the throttle sensors
 // returns true only if the sensor discrepancy is > 3%
+// Note: after verifying there's no discrepancy, can use either sensor(1 or 2) for remaining checks
 bool has_discrepancy() {
     // check throttle
+    
     // calculate percentage of throttle 1
-    int16_t temp_throttle1 = throttle1;
-
+    uint16_t temp_throttle1 = throttle1;
     if (temp_throttle1 > throttle_max) {
         temp_throttle1 = throttle_max;
     } else if (temp_throttle1 < throttle_min) {
@@ -130,7 +130,7 @@ bool has_discrepancy() {
     per_throttle1 = (temp_throttle1-throttle_min) * 100 / (throttle_max - throttle_min);
     
     // calculate percentage of throttle 2
-    int16_t temp_throttle2 = throttle2;
+    uint16_t temp_throttle2 = throttle2;
     if (temp_throttle2 > throttle_max) {
         temp_throttle2 = throttle_max;
     } else if( temp_throttle2 < throttle_min) {
@@ -138,15 +138,36 @@ bool has_discrepancy() {
     }
     per_throttle2 = (temp_throttle2-throttle_min) * 100 / (throttle_max - throttle_min);
     
-    if (abs(per_throttle1-per_throttle2) > 3) {
-        return false;
-    } else {
-        return true;
-    } 
+    return abs((int)per_throttle1 - (int)per_throttle2) > 3;
 }
 
-// state before sensor discrepancy error
-state_t temp_state = state;
+// check for soft BSPD
+// see EV.5.7 of FSAE 2022 rulebook
+bool brake_implausible() {
+    uint16_t temp_throttle = throttle1; 
+
+    // subtract dead zone 15%
+    uint16_t temp_brake = brake1 - ((brake_max-brake_min)/6);
+    if (temp_brake > brake_max){
+        temp_brake = brake_max;
+    }
+    if (temp_brake < brake_min){
+        temp_brake = brake_min;
+    }
+    temp_brake = (uint16_t)(temp_brake-brake_min)*100 / (brake_max-brake_min);
+    
+    if (state == FAULT && error == BRAKE_IMPLAUSIBLE) {
+        // once brake implausibility detected, can only revert to normal if throttle unapplied
+        return !(temp_throttle < throttle_range * 0.25);
+    }
+    else {
+        // if both brake and throttle applied, brake implausible
+        return (temp_brake > 0 && temp_throttle > throttle_range * 0.25);
+    }
+    
+}
+
+state_t temp_state = LV; // state before sensor discrepancy error
 
 void update_sensor_vals() {
     throttle1 = ADCC_GetSingleConversion(channel_ANB1);
@@ -254,7 +275,7 @@ void main() {
                     // Driver flipped on drive switch
                     // Need to press on pedal at the same time to go to drive
                     if (brake1 >= PEDAL_MAX - BRAKE_ERROR_TOLERANCE) {
-                        
+
                         change_state(DRIVE);                        
                     } else {
                         // Driver didn't press pedal
@@ -273,7 +294,13 @@ void main() {
                 if (!is_hv_requested()) {
                     // HV switched flipped off, so can't drive
                     report_fault(HV_DISABLED_WHILE_DRIVING);
+                    break;
                 }
+
+                if (brake_implausible()) {
+                    report_fault(BRAKE_IMPLAUSIBLE);
+                }
+                
                 break;
             case FAULT:
                 switch (error) {
@@ -306,11 +333,16 @@ void main() {
                     case SENSOR_DISCREPANCY:
                         // TODO: stop power to motors if discrepancy persists for >100ms
                         // see rule T.4.2.5 in FSAE 2022 rulebook
-                        if (!has_discrepancy) {
+
+                        if (!has_discrepancy()) {
                             // if discrepancy resolved, change back to previous state
                             change_state(temp_state);
                         }
                         break;
+                    case BRAKE_IMPLAUSIBLE:
+                        if (!brake_implausible()) {
+                            change_state(DRIVE);
+                        }
                 }
                 break;
         }
