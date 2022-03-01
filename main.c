@@ -167,7 +167,9 @@ bool brake_implausible() {
     
 }
 
+// storage variables used to return to previous state when discrepancy is resolved
 state_t temp_state = LV; // state before sensor discrepancy error
+error_t temp_error = NONE; // error state before sensor discrepancy error (only used when going from one fault to discrepancy fault)
 
 void update_sensor_vals() {
     throttle1 = ADCC_GetSingleConversion(channel_ANB1);
@@ -176,10 +178,10 @@ void update_sensor_vals() {
     brake1 = ADCC_GetSingleConversion(channel_ANB0);
     brake2 = ADCC_GetSingleConversion(channel_ANB0); // change pin to test discrepancy
 
-    if (has_discrepancy()) {
-        report_fault(SENSOR_DISCREPANCY);
-    } else {
+    if (error != SENSOR_DISCREPANCY && has_discrepancy()) {
         temp_state = state;
+        temp_error = error;
+        report_fault(SENSOR_DISCREPANCY);
     }
 }
 
@@ -336,7 +338,11 @@ void main() {
 
                         if (!has_discrepancy()) {
                             // if discrepancy resolved, change back to previous state
-                            change_state(temp_state);
+                            if (temp_state == FAULT) {
+                                report_fault(temp_error);
+                            } else {
+                                change_state(temp_state);
+                            }
                         }
                         break;
                     case BRAKE_IMPLAUSIBLE:
