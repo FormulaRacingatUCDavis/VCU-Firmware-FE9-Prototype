@@ -33,7 +33,7 @@ uint8_t is_hv_requested() {
 }
 
 uint8_t is_drive_requested() {
-    return IO_RA0_GetValue();
+    return IO_RB7_GetValue();
 }
 
 // Pedals
@@ -43,7 +43,7 @@ uint8_t is_drive_requested() {
 
 // There is some noise when reading from the brake pedal
 // So give some room for error when driver presses on brake
-#define BRAKE_ERROR_TOLERANCE 20
+#define BRAKE_ERROR_TOLERANCE 50
 
 
 uint16_t throttle1 = 0;
@@ -152,7 +152,16 @@ void run_calibration() {
         if (brake < brake_min) {
             brake_min = brake;
         }    
-        
+
+         printf("throttle1: %d\r\n", throttle1);
+         printf("throttle1_max: %d\r\n", throttle1_max);
+         printf("throttle1_min: %d\r\n", throttle1_min); 
+         printf("throttle2: %d\r\n", throttle2);         
+         printf("throttle2_max: %d\r\n", throttle2_max);
+         printf("throttle2_min: %d\r\n", throttle2_min);
+         printf("brake: %d\r\n", brake);
+         printf("brake_max: %d\r\n", brake_max);
+         printf("brake_min: %d\r\n", brake_min);
     }
 }
 
@@ -189,14 +198,15 @@ bool brake_implausible() {
     uint16_t temp_throttle = throttle1; 
     
     // subtract dead zone 15%
-    uint16_t temp_brake = brake - ((brake_max-brake_min)/6);
+    uint16_t temp_brake = brake - ((throttle_range)/6);
     if (temp_brake > brake_max){
         temp_brake = brake_max;
     }
     if (temp_brake < brake_min){
         temp_brake = brake_min;
     }
-    temp_brake = (uint16_t)((temp_brake-brake_min)*100.0 / (brake_max-brake_min));
+    temp_brake = (uint16_t)((temp_brake-brake_min)*100.0 / throttle_range);
+    
     
     if (state == FAULT && error == BRAKE_IMPLAUSIBLE) {
         // once brake implausibility detected, can only revert to normal if throttle unapplied
@@ -215,15 +225,19 @@ error_t temp_error = NONE; // error state before sensor discrepancy error (only 
 
 void update_sensor_vals() {
     throttle1 = ADCC_GetSingleConversion(channel_ANB0);
-    throttle2 = ADCC_GetSingleConversion(channel_ANB1); // change pin to test discrepancy
-
+    throttle2 = ADCC_GetSingleConversion(channel_ANB1); 
     brake = ADCC_GetSingleConversion(channel_ANB5);
+    
+     printf("State: %s\r\n", STATE_NAMES[state]);
+     printf("Throttle 1: %d\r\n", throttle1);
+     printf("Throttle 2: %d\r\n", throttle2);
+     printf("Brake: %d\r\n", brake);
 
-    if (error != SENSOR_DISCREPANCY && has_discrepancy() ) {
-        temp_state = state;
-        temp_error = error;
-        report_fault(SENSOR_DISCREPANCY);
-    }
+   if (error != SENSOR_DISCREPANCY && has_discrepancy() ) {
+       temp_state = state;
+       temp_error = error;
+       report_fault(SENSOR_DISCREPANCY);
+   }
 }
 
 
@@ -264,8 +278,12 @@ void main() {
         // Main FSM
         // Source: https://docs.google.com/document/d/1q0RL4FmDfVuAp6xp9yW7O-vIvnkwoAXWssC3-vBmNGM/edit?usp=sharing
         
+        printf("-----------------------\r\n");
+        
         switch (state) {
             case LV:
+                run_calibration();
+                
                 if (is_drive_requested()) {
                     // Drive switch should not be enabled during LV
                     report_fault(DRIVE_REQUEST_FROM_LV);
@@ -274,11 +292,14 @@ void main() {
 
                 if (is_hv_requested()) {
                     // HV switch was flipped
+                    
+                    // Set throttle and brake range since calibration is done
+                    throttle_range = throttle1_max - throttle1_min;
+                    brake_range = brake_max - brake_min; // idk where this is even used
+                    
                     // Start charging the car to high voltage state
                     change_state(PRECHARGING);
-                }
-                
-                run_calibration();
+                } 
                 
                 break;
             case PRECHARGING:
